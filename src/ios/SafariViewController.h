@@ -12,7 +12,7 @@
 @interface SafariViewController : CDVPlugin <SFSafariViewControllerDelegate>
 
 @property (nonatomic, copy) NSString* callbackId;
-@property (nonatomic) bool animated;
+@property (nonatomic) BOOL animated;
 @property (nonatomic) id<ActivityItemProvider> activityItemProvider;
 
 - (void) isAvailable:(CDVInvokedUrlCommand*)command;

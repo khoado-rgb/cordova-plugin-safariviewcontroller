@@ -6,8 +6,8 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import androidx.annotation.ColorInt;
+import androidx.browser.customtabs.CustomTabColorSchemeParams;
 import androidx.browser.customtabs.CustomTabsClient;
 import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.browser.customtabs.CustomTabsSession;
@@ -62,17 +62,20 @@ public class ChromeCustomTabPlugin extends CordovaPlugin{
                 }
 
                 final String toolbarColor = options.optString("toolbarColor");
-                final Boolean showDefaultShareMenuItem = options.optBoolean("showDefaultShareMenuItem");
+                final String toolbarColorDark = options.optString("toolbarColorDark");
+                final boolean showDefaultShareMenuItem = options.optBoolean("showDefaultShareMenuItem");
+                final boolean enableUrlBarHiding = options.optBoolean("enableUrlBarHiding", false);
                 String transition = "";
                 mStartAnimationBundle = null;
-                final Boolean animated = options.optBoolean("animated", true);
+                final boolean animated = options.optBoolean("animated", true);
                 if(animated) transition = options.optString("transition", "slide");
 
                 PluginResult pluginResult;
                 JSONObject result = new JSONObject();
                 if(isAvailable()) {
                     try {
-                        this.show(url, getColor(toolbarColor), showDefaultShareMenuItem, transition);
+                        this.show(url, getColor(toolbarColor), toolbarColorDark,
+                                showDefaultShareMenuItem, transition, enableUrlBarHiding);
                         result.put("event", "loaded");
                         pluginResult = new PluginResult(PluginResult.Status.OK, result);
                         pluginResult.setKeepCallback(true);
@@ -147,14 +150,31 @@ public class ChromeCustomTabPlugin extends CordovaPlugin{
         return mCustomTabPluginHelper.isAvailable();
     }
 
-    private void show(String url, @ColorInt int toolbarColor, boolean showDefaultShareMenuItem, String transition) {
-        CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder(getSession())
-                .setToolbarColor(toolbarColor);
-        if(showDefaultShareMenuItem)
-            builder.addDefaultShareMenuItem();
-        if(!TextUtils.isEmpty(transition))
-            addTransition(builder, transition);
+    private void show(String url, @ColorInt int toolbarColor, String toolbarColorDarkStr,
+                      boolean showDefaultShareMenuItem, String transition, boolean enableUrlBarHiding) {
 
+        // Build light color scheme params
+        CustomTabColorSchemeParams lightParams = new CustomTabColorSchemeParams.Builder()
+                .setToolbarColor(toolbarColor)
+                .build();
+
+        // Build dark color scheme params — fall back to light color when not specified
+        int darkColor = TextUtils.isEmpty(toolbarColorDarkStr) ? toolbarColor : getColor(toolbarColorDarkStr);
+        CustomTabColorSchemeParams darkParams = new CustomTabColorSchemeParams.Builder()
+                .setToolbarColor(darkColor)
+                .build();
+
+        CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder(getSession())
+                .setDefaultColorSchemeParams(lightParams)
+                .setColorSchemeParams(CustomTabsIntent.COLOR_SCHEME_DARK, darkParams)
+                .setUrlBarHidingEnabled(enableUrlBarHiding)
+                .setShareState(showDefaultShareMenuItem
+                        ? CustomTabsIntent.SHARE_STATE_ON
+                        : CustomTabsIntent.SHARE_STATE_DEFAULT);
+
+        if (!TextUtils.isEmpty(transition)) {
+            addTransition(builder, transition);
+        }
 
         CustomTabsIntent customTabsIntent = builder.build();
 
@@ -205,12 +225,11 @@ public class ChromeCustomTabPlugin extends CordovaPlugin{
     }
 
     private int getColor(String color) {
-        if(TextUtils.isEmpty(color)) return Color.LTGRAY;
-
+        if (TextUtils.isEmpty(color)) return Color.LTGRAY;
         try {
             return Color.parseColor(color);
-        } catch (NumberFormatException ex) {
-            Log.i(TAG, String.format("Unable to parse Color: %s", color));
+        } catch (IllegalArgumentException ex) {
+            Log.w(TAG, String.format("Unable to parse color: %s", color));
             return Color.LTGRAY;
         }
     }
