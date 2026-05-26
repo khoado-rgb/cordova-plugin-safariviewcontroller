@@ -4,12 +4,8 @@ cdvPluginPostBuildExtras.add({
             sourceCompatibility JavaVersion.VERSION_1_8
             targetCompatibility JavaVersion.VERSION_1_8
         }
-    }
-
-    // Keep Kotlin bytecode target aligned with Java compileOptions to avoid Gradle target validation errors.
-    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
         kotlinOptions {
-            jvmTarget = JavaVersion.VERSION_1_8.toString()
+            jvmTarget = '1.8'
         }
     }
 })
